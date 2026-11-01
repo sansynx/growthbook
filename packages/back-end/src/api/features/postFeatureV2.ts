@@ -1,10 +1,14 @@
 import {
-  validateFeatureValue,
+  FEATURE_KEY_PATTERN,
+  FEATURE_KEY_PATTERN_ERROR,
+} from "shared/constants";
+import {
   getRuleAttributeScopeProjectIds,
   normalizeTargetingProjects,
 } from "shared/util";
 import { postFeatureV2Validator } from "shared/validators";
 import { FeatureInterface } from "shared/types/feature";
+import { assertStorableFeatureValue } from "back-end/src/util/storableFeatureValue";
 import { getApiCreateEnabledEnvironments } from "back-end/src/util/features";
 import { createApiRequestHandler } from "back-end/src/util/handler";
 import { assertCanCreateFeatureInState } from "back-end/src/revisions/featureDraftAuthority";
@@ -72,10 +76,8 @@ export const postFeatureV2 = createApiRequestHandler(postFeatureV2Validator)(
       throw new Error(`Feature id '${req.body.id}' already exists.`);
     }
 
-    if (!req.body.id.match(/^[a-zA-Z0-9_.:|-]+$/)) {
-      throw new Error(
-        "Feature keys can only include letters, numbers, hyphens, and underscores.",
-      );
+    if (!new RegExp(FEATURE_KEY_PATTERN).test(req.body.id)) {
+      throw new Error(FEATURE_KEY_PATTERN_ERROR);
     }
 
     const orgEnvs = getEnvironments(req.context.org);
@@ -201,8 +203,8 @@ export const postFeatureV2 = createApiRequestHandler(postFeatureV2Validator)(
       feature.valueType,
     );
     feature.jsonSchema = jsonSchema;
-    // Always normalize; enforce the schema unless explicitly skipped.
-    feature.defaultValue = validateFeatureValue(
+    // Enforce the schema unless explicitly skipped.
+    feature.defaultValue = assertStorableFeatureValue(
       req.context.canSkipSchemaValidationFor("feature")
         ? { ...feature, jsonSchema: undefined }
         : feature,

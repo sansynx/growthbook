@@ -1,7 +1,12 @@
 import { z } from "zod";
-import { normalizeTargetingProjects, validateFeatureValue } from "shared/util";
+import {
+  FEATURE_KEY_PATTERN,
+  FEATURE_KEY_PATTERN_ERROR,
+} from "shared/constants";
+import { normalizeTargetingProjects } from "shared/util";
 import { postFeatureValidator } from "shared/validators";
 import { FeatureInterface } from "shared/types/feature";
+import { assertStorableFeatureValue } from "back-end/src/util/storableFeatureValue";
 import { featurePublishEnvironmentIds } from "back-end/src/services/featurePublishGates";
 import { getApiCreateEnabledEnvironments } from "back-end/src/util/features";
 import { createApiRequestHandler } from "back-end/src/util/handler";
@@ -85,10 +90,8 @@ export const postFeature = createApiRequestHandler(postFeatureValidator)(async (
     throw new Error(`Feature id '${req.body.id}' already exists.`);
   }
 
-  if (!req.body.id.match(/^[a-zA-Z0-9_.:|-]+$/)) {
-    throw new Error(
-      "Feature keys can only include letters, numbers, hyphens, and underscores.",
-    );
+  if (!new RegExp(FEATURE_KEY_PATTERN).test(req.body.id)) {
+    throw new Error(FEATURE_KEY_PATTERN_ERROR);
   }
 
   const orgEnvs = getEnvironments(req.context.org);
@@ -189,7 +192,7 @@ export const postFeature = createApiRequestHandler(postFeatureValidator)(async (
   });
 
   // ensure default value matches value type
-  feature.defaultValue = validateFeatureValue(
+  feature.defaultValue = assertStorableFeatureValue(
     feature,
     feature.defaultValue,
     "Default value",
